@@ -5,8 +5,8 @@ import json
 
 app = FastAPI()
 
-with open("catalog.json") as f:
-    catalog = json.load(f)
+with open("catalog.json", "r") as f:
+    catalog = json.loads(f.read(), strict=False)
 
 class Message(BaseModel):
     role: str
@@ -17,11 +17,33 @@ class ChatRequest(BaseModel):
 
 @app.get("/")
 def root():
-    return {"message": "SHL Assessment Recommendation API Running"}
+    return {
+        "message": "SHL Assessment Recommendation API Running"
+    }
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {
+        "status": "ok"
+    }
+
+def extract_text(item):
+
+    values = []
+
+    for key, value in item.items():
+
+        if isinstance(value, str):
+            values.append(value.lower())
+
+        elif isinstance(value, list):
+
+            for v in value:
+
+                if isinstance(v, str):
+                    values.append(v.lower())
+
+    return " ".join(values)
 
 @app.post("/chat")
 def chat(request: ChatRequest):
@@ -32,59 +54,150 @@ def chat(request: ChatRequest):
         m.content for m in request.messages
     ]).lower()
 
-    if "salary" in latest or "legal" in latest:
+    blocked_words = [
+        "salary",
+        "legal",
+        "law",
+        "visa",
+        "immigration",
+        "tax"
+    ]
+
+    for word in blocked_words:
+
+        if word in latest:
+
+            return {
+                "reply": "I can only assist with SHL assessment recommendations and catalog-related queries.",
+                "recommendations": [],
+                "end_of_conversation": False
+            }
+
+    if (
+        "difference" in latest or
+        "compare" in latest or
+        "vs" in latest
+    ):
+
         return {
-            "reply": "I can only assist with SHL assessments.",
+            "reply": "These assessments measure different dimensions such as aptitude, personality, technical knowledge, or situational judgement.",
             "recommendations": [],
             "end_of_conversation": False
         }
 
-    if "difference" in latest or "compare" in latest:
+    vague_terms = [
+        "assessment",
+        "test",
+        "solution",
+        "hiring"
+    ]
+
+    if (
+        any(word in latest for word in vague_terms)
+        and len(latest.split()) < 6
+    ):
+
         return {
-            "reply": "OPQ measures personality traits while GSA measures cognitive ability.",
+            "reply": "Could you share the role, seniority level, and the most important skills or competencies required?",
             "recommendations": [],
             "end_of_conversation": False
         }
 
-    if len(latest.split()) < 3:
-        return {
-            "reply": "Please share role and required skills.",
-            "recommendations": [],
-            "end_of_conversation": False
-        }
+    query_words = set(history.split())
 
-    matches = []
+    important_keywords = [
+        "java",
+        "spring",
+        "sql",
+        "aws",
+        "docker",
+        "angular",
+        "python",
+        "excel",
+        "word",
+        "finance",
+        "sales",
+        "leadership",
+        "safety",
+        "networking",
+        "customer",
+        "service"
+    ]
+
+    detected_keywords = []
+
+    for keyword in important_keywords:
+
+        if keyword in history:
+            detected_keywords.append(keyword)
+
+    scored = []
 
     for item in catalog:
 
-        text = (
-            item["name"] + " " +
-            item["description"] + " " +
-            " ".join(item["skills"])
-        ).lower()
+        text = extract_text(item)
 
         score = 0
 
-        for word in history.split():
-            if word in text:
+        for keyword in detected_keywords:
+
+            if keyword in text:
+                score += 5
+
+        for word in query_words:
+
+            if len(word) > 3 and word in text:
                 score += 1
 
-        if score > 0:
-            matches.append((score, item))
+        if score >= 3:
+            scored.append((score, item))
 
-    matches.sort(reverse=True, key=lambda x: x[0])
+    scored.sort(
+        reverse=True,
+        key=lambda x: x[0]
+    )
 
-    result = []
+    recommendations = []
 
-    for _, item in matches[:5]:
-        result.append({
-            "name": item["name"],
-            "url": item["url"],
-            "test_type": item["test_type"]
+    seen = set()
+
+    for _, item in scored:
+
+        name = item.get(
+            "name",
+            item.get("title", "Unknown")
+        )
+
+        if name in seen:
+            continue
+
+        seen.add(name)
+
+        recommendations.append({
+            "name": name,
+            "url": item.get(
+                "url",
+                item.get("product_url", "")
+            ),
+            "test_type": item.get(
+                "test_type",
+                item.get("assessment_type", "Unknown")
+            )
         })
 
+        if len(recommendations) >= 10:
+            break
+
+    if not recommendations:
+
+        return {
+            "reply": "I could not find strong matches in the SHL catalog. Could you refine the role requirements or required skills?",
+            "recommendations": [],
+            "end_of_conversation": False
+        }
+
     return {
-        "reply": "Here are relevant SHL assessments.",
-        "recommendations": result,
+        "reply": "Here are relevant SHL assessments based on your requirements.",
+        "recommendations": recommendations,
         "end_of_conversation": False
     }
