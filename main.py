@@ -45,63 +45,7 @@ def extract_text(item):
 
     return " ".join(values)
 
-@app.post("/chat")
-def chat(request: ChatRequest):
-
-    latest = request.messages[-1].content.lower()
-
-    history = " ".join([
-        m.content for m in request.messages
-    ]).lower()
-
-    blocked_words = [
-        "salary",
-        "legal",
-        "law",
-        "visa",
-        "immigration",
-        "tax"
-    ]
-
-    for word in blocked_words:
-
-        if word in latest:
-
-            return {
-                "reply": "I can only assist with SHL assessment recommendations and catalog-related queries.",
-                "recommendations": [],
-                "end_of_conversation": False
-            }
-
-    if (
-        "difference" in latest or
-        "compare" in latest or
-        "vs" in latest
-    ):
-
-        return {
-            "reply": "These assessments measure different dimensions such as aptitude, personality, technical knowledge, or situational judgement.",
-            "recommendations": [],
-            "end_of_conversation": False
-        }
-
-    vague_terms = [
-        "assessment",
-        "test",
-        "solution",
-        "hiring"
-    ]
-
-    if (
-        any(word in latest for word in vague_terms)
-        and len(latest.split()) < 6
-    ):
-
-        return {
-            "reply": "Could you share the role, seniority level, and the most important skills or competencies required?",
-            "recommendations": [],
-            "end_of_conversation": False
-        }
+def generate_recommendations(history):
 
     query_words = set(history.split())
 
@@ -188,6 +132,68 @@ def chat(request: ChatRequest):
         if len(recommendations) >= 10:
             break
 
+    return recommendations
+
+@app.post("/chat")
+def chat(request: ChatRequest):
+
+    latest = request.messages[-1].content.lower()
+
+    history = " ".join([
+        m.content for m in request.messages
+    ]).lower()
+
+    blocked_words = [
+        "salary",
+        "legal",
+        "law",
+        "visa",
+        "immigration",
+        "tax"
+    ]
+
+    for word in blocked_words:
+
+        if word in latest:
+
+            return {
+                "reply": "I can only assist with SHL assessment recommendations and catalog-related queries.",
+                "recommendations": [],
+                "end_of_conversation": False
+            }
+
+    if (
+        "difference" in latest or
+        "compare" in latest or
+        "vs" in latest
+    ):
+
+        return {
+            "reply": "These assessments measure different dimensions such as aptitude, personality, technical knowledge, or situational judgement.",
+            "recommendations": [],
+            "end_of_conversation": False
+        }
+
+    vague_terms = [
+        "assessment",
+        "test",
+        "solution",
+        "hiring"
+    ]
+
+    if (
+        any(word in latest for word in vague_terms)
+        and len(latest.split()) < 6
+    ):
+
+        return {
+            "reply": "Could you share the role, seniority level, and the most important skills or competencies required?",
+            "recommendations": [],
+            "end_of_conversation": False
+        }
+
+    recommendations = generate_recommendations(history)
+
     if not recommendations:
 
         return {
@@ -200,4 +206,47 @@ def chat(request: ChatRequest):
         "reply": "Here are relevant SHL assessments based on your requirements.",
         "recommendations": recommendations,
         "end_of_conversation": False
+    }
+
+@app.get("/evaluate")
+def evaluate():
+
+    sample_query = (
+        "Hiring Java backend developer with Spring and SQL"
+    )
+
+    expected = [
+        "Core Java (Advanced Level) (New)",
+        "Spring (New)",
+        "SQL (New)"
+    ]
+
+    predictions = generate_recommendations(
+        sample_query.lower()
+    )
+
+    predicted_names = [
+        item["name"]
+        for item in predictions
+    ]
+
+    hits = 0
+
+    matched = []
+
+    for item in expected:
+
+        if item in predicted_names:
+            hits += 1
+            matched.append(item)
+
+    recall_at_10 = hits / len(expected)
+
+    return {
+        "query": sample_query,
+        "expected": expected,
+        "predicted": predicted_names,
+        "matched_items": matched,
+        "hits": hits,
+        "recall@10": recall_at_10
     }
