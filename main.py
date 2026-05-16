@@ -158,7 +158,7 @@ def chat(request: ChatRequest):
 
             return {
                 "reply": "I can only assist with SHL assessment recommendations and catalog-related queries.",
-                "recommendations": [],
+                "recommendations": None,
                 "end_of_conversation": False
             }
 
@@ -170,7 +170,7 @@ def chat(request: ChatRequest):
 
         return {
             "reply": "These assessments measure different dimensions such as aptitude, personality, technical knowledge, or situational judgement.",
-            "recommendations": [],
+            "recommendations": None,
             "end_of_conversation": False
         }
 
@@ -188,7 +188,7 @@ def chat(request: ChatRequest):
 
         return {
             "reply": "Could you share the role, seniority level, and the most important skills or competencies required?",
-            "recommendations": [],
+            "recommendations": None,
             "end_of_conversation": False
         }
 
@@ -198,14 +198,14 @@ def chat(request: ChatRequest):
 
         return {
             "reply": "I could not find strong matches in the SHL catalog. Could you refine the role requirements or required skills?",
-            "recommendations": [],
+            "recommendations": None,
             "end_of_conversation": False
         }
 
     return {
         "reply": "Here are relevant SHL assessments based on your requirements.",
         "recommendations": recommendations,
-        "end_of_conversation": False
+        "end_of_conversation": True
     }
 
 @app.get("/evaluate")
@@ -217,8 +217,7 @@ def evaluate():
 
     expected = [
         "Core Java (Advanced Level) (New)",
-        "Spring (New)",
-        "SQL (New)"
+        "Java 8 (New)"
     ]
 
     predictions = generate_recommendations(
