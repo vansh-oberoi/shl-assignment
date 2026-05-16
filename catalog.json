@@ -1,0 +1,23 @@
+[
+  {
+    "name":"Java 8 (New)",
+    "url":"https://www.shl.com",
+    "description":"Java programming assessment",
+    "skills":["java","backend","programming"],
+    "test_type":"K"
+  },
+  {
+    "name":"OPQ32r",
+    "url":"https://www.shl.com",
+    "description":"Personality assessment",
+    "skills":["personality","behavior","leadership"],
+    "test_type":"P"
+  },
+  {
+    "name":"GSA",
+    "url":"https://www.shl.com",
+    "description":"General cognitive ability assessment",
+    "skills":["cognitive","problem solving","reasoning"],
+    "test_type":"A"
+  }
+]
